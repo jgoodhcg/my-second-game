@@ -1,0 +1,5 @@
+* Running
+#+begin_src
+npx serve public
+cider-jack-in-cljs
+#+end_src
