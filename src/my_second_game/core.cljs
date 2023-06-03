@@ -1,25 +1,38 @@
-(ns my-second-game.core)
+(ns my-second-game.core
+  (:require [cljs.pprint :refer [pprint]]))
 
 (def speed 5)
-(def fox-speed 20) ;; Assuming fox is slower than the bunny
+(def fox-speed 4)
 (def state (atom {:bunny {:x 100 :y 100 :vx 0 :vy 0}
-                  :fox {:x 0 :y 0 :vx 0 :vy 0}})) ;; Add the fox to the state
+                  :fox {:x 0 :y 0 :vx 0 :vy 0}}))
+
+(comment
+  (pprint @state)
+  (cond-> {} :always (assoc :a 1) true (assoc :b 2)))
 
 (defn update-state []
   (swap! state
          (fn [state]
            (let [{:keys [x y vx vy]} (:bunny state)
-                 new-x (+ x vx)
-                 new-y (+ y vy)
-                 {:keys [x fox-x y fox-y]} (:fox state)
-                 fox-dir (Math/atan2 (- new-y fox-y) (- new-x fox-x))]
-             (-> state
-                 (assoc-in [:bunny :x] new-x)
-                 (assoc-in [:bunny :y] new-y)
-                 (assoc-in [:bunny :vx] 0)
-                 (assoc-in [:bunny :vy] 0)
-                 (assoc-in [:fox :x] (+ fox-x (* (Math/cos fox-dir) fox-speed)))
-                 (assoc-in [:fox :y] (+ fox-y (* (Math/sin fox-dir) fox-speed))))))))
+                 new-x               (+ x vx)
+                 new-y               (+ y vy)
+                 {fox-y :y fox-x :x} (:fox state)
+                 dx                  (- x fox-x)
+                 dy                  (- y fox-y)
+                 distance            (Math/sqrt (+ (Math/pow dx 2) (Math/pow dy 2)))
+                 normalized-dx       (/ dx distance)
+                 normalized-dy       (/ dy distance)]
+
+             (cond-> state
+               :always
+               (assoc-in [:bunny] {:x new-x :y new-y :vx 0 :vy 0})
+
+               (and
+                (not (zero? distance))
+                (or (not (zero? vx))
+                    (not (zero? vy))))
+               (assoc-in [:fox] {:x (+ fox-x (* normalized-dx fox-speed))
+                                 :y (+ fox-y (* normalized-dy fox-speed))}))))))
 
 (defn render [app bunny fox]
   (let [{:keys [x y]} (:bunny @state)]
@@ -49,9 +62,9 @@
 (defn ^:export main []
   (let [app (js/PIXI.Application. #js {:backgroundColor 0xffffff})
         bunny-texture (js/PIXI.Texture.from "textures/bunny.png")
-        fox-texture (js/PIXI.Texture.from "textures/fox.png") ;; Update this path
+        fox-texture (js/PIXI.Texture.from "textures/fox.png")
         bunny (js/PIXI.Sprite. bunny-texture)
-        fox (js/PIXI.Sprite. fox-texture)] ;; Create the fox sprite
+        fox (js/PIXI.Sprite. fox-texture)]
 
     (set! (.-height fox) 128)
     (set! (.-width fox) 128)
