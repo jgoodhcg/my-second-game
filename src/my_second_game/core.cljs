@@ -3,17 +3,18 @@
 
 (def speed 5)
 (def fox-speed 4)
-(def state (atom {:bunny {:x 100 :y 100 :vx 0 :vy 0}
+(def state (atom {:bunny {:x 400 :y 400 :vx 0 :vy 0 :scale 1}
                   :fox {:x 0 :y 0 :vx 0 :vy 0}}))
 
 (comment
   (pprint @state)
-  (cond-> {} :always (assoc :a 1) true (assoc :b 2)))
+  (cond-> {} :always (assoc :a 1) true (assoc :b 2))
+  )
 
 (defn update-state []
   (swap! state
          (fn [state]
-           (let [{:keys [x y vx vy]} (:bunny state)
+           (let [{:keys [x y vx vy scale]} (:bunny state)
                  new-x               (+ x vx)
                  new-y               (+ y vy)
                  {fox-y :y fox-x :x} (:fox state)
@@ -25,7 +26,7 @@
 
              (cond-> state
                :always
-               (assoc-in [:bunny] {:x new-x :y new-y :vx 0 :vy 0})
+               (update-in [:bunny] assoc :x new-x :y new-y :vx 0 :vy 0)
 
                (and
                 (not (zero? distance))
@@ -35,12 +36,14 @@
                                  :y (+ fox-y (* normalized-dy fox-speed))}))))))
 
 (defn render [app bunny fox]
-  (let [{:keys [x y]} (:bunny @state)]
+  (let [{:keys [x y scale]} (:bunny @state)]
     (set! (.-x bunny) x)
-    (set! (.-y bunny) y))
+    (set! (.-y bunny) y)
+    (set! (.-x (.-scale bunny)) scale)) ;; Flip the bunny sprite based on scale value
   (let [{:keys [x y]} (:fox @state)]
     (set! (.-x fox) x)
     (set! (.-y fox) y)))
+
 
 (defn game-loop [app bunny fox]
   (fn []
@@ -55,8 +58,12 @@
              (condp = code
                "ArrowUp"    (assoc bunny :vy (- speed))
                "ArrowDown"  (assoc bunny :vy speed)
-               "ArrowLeft"  (assoc bunny :vx (- speed))
-               "ArrowRight" (assoc bunny :vx speed)
+               "ArrowLeft"  (-> bunny
+                                (assoc :vx (- speed))
+                                (assoc :scale -1))
+               "ArrowRight" (-> bunny
+                                (assoc :vx speed)
+                                (assoc :scale 1))
                bunny)))))
 
 (defn ^:export main []
@@ -66,10 +73,7 @@
         bunny (js/PIXI.Sprite. bunny-texture)
         fox (js/PIXI.Sprite. fox-texture)]
 
-    (set! (.-height fox) 128)
-    (set! (.-width fox) 128)
-    (set! (.-height bunny) 128)
-    (set! (.-width bunny) 128)
+    (set! (.-anchor.x bunny) 0.5)
 
     ;; Adding the sprites to the stage
     (.addChild (.-stage app) bunny)
